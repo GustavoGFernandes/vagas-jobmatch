@@ -1,17 +1,31 @@
-const express = require('express');
-const cors = require('cors');
-const rotas = require('./routes');
-const { rotaNaoEncontrada, tratarErros } = require('./middlewares/erros');
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+
+import { errorHandler } from "./middlewares/errorHandler.js";
+import healthRoutes from "./routes/healthRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 const app = express();
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000' }));
-app.use(express.json({ limit: '1mb' }));
+app.use(helmet());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  }),
+);
+app.use(express.json());
 
-app.get('/', (req, res) => res.json({ mensagem: 'API do JobMatch. As rotas ficam em /api.' }));
-app.use('/api', rotas);
+app.get("/", (request, response) => {
+  response.json({
+    message: "API do projeto base",
+  });
+});
 
-app.use(rotaNaoEncontrada);
-app.use(tratarErros);
+app.use("/api/health", healthRoutes);
 
-module.exports = app;
+app.use("/api/admin", adminRoutes);
+
+app.use(errorHandler);
+
+export default app;

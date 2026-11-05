@@ -4,7 +4,7 @@ const { naoEncontrado, proibido, conflito, invalido, lerId } = require('../middl
 const MODALIDADES = ['PRESENCIAL', 'HIBRIDO', 'REMOTO'];
 const CONTRATOS = ['CLT', 'PJ', 'ESTAGIO', 'TEMPORARIO', 'FREELANCER'];
 
-// Mudanças de status permitidas (RN08): Rascunho → Aberta → Pausada ↔ Aberta → Encerrada
+
 const TRANSICOES = {
   RASCUNHO: ['ABERTA'],
   ABERTA: ['PAUSADA', 'ENCERRADA'],
@@ -12,20 +12,12 @@ const TRANSICOES = {
   ENCERRADA: [],
 };
 
-// =====================================================================
-// Funções de apoio
-// =====================================================================
+
 
 const ehCandidato = (u) => u && u.perfil === 'CANDIDATO' && u.candidatoId;
 const ehRecrutador = (u) => u && u.perfil === 'RECRUTADOR' && u.empresaId;
 
-// Score de compatibilidade (recurso avançado), de 0 a 100.
-// Fórmula da documentação: 0,5·H + 0,2·N + 0,15·L + 0,15·S.
-// O currículo ainda não guarda o nível de experiência, então o termo N fica de fora
-// e os outros pesos são reescalados para somar 100%.
-//   H = % das habilidades da vaga que o candidato tem
-//   L = 1 se remota ou mesma cidade; 0,5 se mesmo estado; 0 caso contrário
-//   S = 1 se a pretensão cabe na faixa (ou a vaga não informa); cai proporcionalmente acima do máximo
+
 const normalizar = (t) => (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 
 function calcularMatch(perfil, vaga) {
@@ -75,7 +67,7 @@ async function anexarHabilidades(vagas) {
   return vagas;
 }
 
-// Formato da vaga nas respostas (camelCase, como o frontend usa)
+// Formato da vaga nas respostas
 function formatarResumo(v) {
   return {
     id: v.id,
@@ -122,7 +114,7 @@ async function salvarEtapas(db, vagaId, etapas) {
   }
 }
 
-// Valida e limpa os dados do formulário de vaga (RN07 e RN09)
+// Valida e limpa os dados do formulário de vaga 
 function validarVaga(corpo = {}) {
   const texto = (v) => (typeof v === 'string' ? v.trim() : '');
   const numero = (v) => (v === '' || v == null ? null : Number(v));
@@ -166,17 +158,13 @@ function validarVaga(corpo = {}) {
   return v;
 }
 
-// ?modalidade=REMOTO,HIBRIDO → ['REMOTO', 'HIBRIDO'], ignorando valores inválidos
+
 function lerLista(valor, permitidos) {
   if (!valor) return [];
   return String(valor).toUpperCase().split(',').map((s) => s.trim()).filter((s) => permitidos.includes(s));
 }
 
-// =====================================================================
-// Rotas públicas
-// =====================================================================
 
-// GET /api/vagas — pesquisa e filtros (RF07, RF08). Só lista vagas abertas.
 async function listar(req, res) {
   const f = req.query;
   const pagina = Math.max(1, parseInt(f.page, 10) || 1);
@@ -267,7 +255,7 @@ async function detalhar(req, res) {
     podeGerenciar: dona,
   };
 
-  // Histórico de vagas visualizadas (RF14)
+  
   if (usuario) await query('INSERT INTO visualizacao_vaga (usuario_id, vaga_id) VALUES (?, ?)', [usuario.id, vagaId]);
 
   if (ehCandidato(usuario)) {
@@ -285,11 +273,7 @@ async function detalhar(req, res) {
   res.json(vaga);
 }
 
-// =====================================================================
-// Área da empresa
-// =====================================================================
 
-// GET /api/vagas/minhas — vagas da empresa do recrutador, com contagem de candidatos
 async function minhas(req, res) {
   const params = [req.usuario.empresaId];
   const onde = ['v.empresa_id = ?'];
@@ -337,8 +321,7 @@ async function criar(req, res) {
   res.status(201).json({ id, status });
 }
 
-// PUT /api/vagas/:id — edita a vaga. Vaga encerrada não pode ser editada.
-// As etapas só mudam enquanto ninguém se candidatou (as candidaturas apontam para elas).
+
 async function atualizar(req, res) {
   const vagaId = lerId(req.params.id);
   const dados = validarVaga(req.body);
@@ -367,7 +350,7 @@ async function atualizar(req, res) {
   res.json({ id: vagaId });
 }
 
-// PATCH /api/vagas/:id/status — publicar, pausar, reabrir ou encerrar
+
 async function alterarStatus(req, res) {
   const vagaId = lerId(req.params.id);
   const novo = String(req.body?.status || '').toUpperCase();
@@ -386,7 +369,7 @@ async function alterarStatus(req, res) {
 
     if (novo !== 'ENCERRADA') return 0;
 
-    // RN16: quem ainda estava em andamento passa para Reprovado com o motivo "Vaga encerrada"
+    
     const ativas = await db.query(
       `SELECT c.id, c.etapa_atual_id, ca.usuario_id
          FROM candidatura c JOIN candidato ca ON ca.id = c.candidato_id
@@ -406,7 +389,7 @@ async function alterarStatus(req, res) {
   res.json({ id: vagaId, status: novo, candidaturasEncerradas: encerradas });
 }
 
-// POST /api/vagas/:id/duplicar — cria um rascunho com os mesmos dados, etapas e habilidades
+
 async function duplicar(req, res) {
   const vagaId = lerId(req.params.id);
   const novaId = await transacao(async (db) => {
@@ -426,7 +409,7 @@ async function duplicar(req, res) {
   res.status(201).json({ id: novaId, status: 'RASCUNHO' });
 }
 
-// DELETE /api/vagas/:id — só rascunhos podem ser excluídos; as demais devem ser encerradas
+
 async function excluir(req, res) {
   const vagaId = lerId(req.params.id);
   await transacao(async (db) => {
@@ -441,6 +424,6 @@ async function excluir(req, res) {
 
 module.exports = {
   listar, filtros, detalhar, minhas, criar, atualizar, alterarStatus, duplicar, excluir,
-  // usados pelo candidaturasController
+  
   calcularMatch, carregarPerfis, anexarHabilidades,
 };

@@ -1,5 +1,9 @@
-require('dotenv').config();
-const app = require('./app');
+import "dotenv/config";
 
-const porta = process.env.PORT || 8080;
-app.listen(porta, () => console.log(`API do JobMatch rodando em http://localhost:${porta}/api`));
+import app from "./app.js";
+
+const port = Number(process.env.PORT || 8080);
+
+app.listen(port, () => {
+  console.log(`API running on port ${port}`);
+});

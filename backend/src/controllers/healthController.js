@@ -1,13 +1,15 @@
-const { testarConexao } = require('../config/db');
+import { checkDatabaseConnection } from "../config/database.js";
 
-// GET /api/health — status da API e teste da conexão com o MySQL
-async function verificar(req, res) {
+export async function healthCheck(request, response, next) {
   try {
-    await testarConexao();
-    res.json({ status: 'ok', banco: 'conectado' });
-  } catch (erro) {
-    res.status(503).json({ status: 'erro', banco: 'sem conexão', mensagem: erro.message });
+    const databaseConnected = await checkDatabaseConnection();
+
+    response.json({
+      status: "ok",
+      database: databaseConnected ? "connected" : "disconnected",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
   }
 }
-
-module.exports = { verificar };
